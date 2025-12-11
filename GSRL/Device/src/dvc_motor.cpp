@@ -698,3 +698,49 @@ void MotorDM4310::setMotorZeroPosition()
 {
     m_setZeroPositionFlag = true;
 }
+
+/******************************************************************************
+ *                           DMS2325电机类实现
+ ******************************************************************************/
+
+ MotorDM2325::MotorDM2325(uint8_t controlID,
+                         uint8_t masterID,
+                         fp32 pmax,
+                         fp32 vmax,
+                         fp32 tmax,
+                         Controller *controller)
+    : MotorDM4310(controlID, masterID, pmax, vmax, tmax, controller)
+{
+    m_setZeroPositionFlag = false;
+}
+
+/**
+ * @brief 解析 DM2325 电机反馈（覆盖 DM4310，只因状态码不同）
+ */
+bool MotorDM2325::decodeCanRxMessage(const can_rx_message_t &rxMessage)
+{
+    //复用父类结构
+    if (rxMessage.header.StdId != m_motorFeedbackMessageID) return false;
+    if ((rxMessage.data[0] & 0x0F) != (m_motorControlMessageID & 0x0F)) return false;
+
+
+    uint8_t state = rxMessage.data[0] >> 4;
+
+    // DM2325 增加 0x05、0x06 错误码
+    m_motorState = (DMMotorState)state;
+
+    // 复用父类 MIT 解码结构（位置、速度、扭矩）
+    int rxRawPos     = (rxMessage.data[1] << 8) | rxMessage.data[2];
+    int rxRawVel     = (rxMessage.data[3] << 4) | (rxMessage.data[4] >> 4);
+    int rxRawTorque  = ((rxMessage.data[4] & 0x0F) << 8) | rxMessage.data[5];
+
+    m_dmEncoderPosition      = GSRLMath::convertUintToFloat(rxRawPos,    -PMAX, PMAX, 16);
+    m_currentAngle           = GSRLMath::normalizeAngle(m_dmEncoderPosition);
+    m_currentAngularVelocity = GSRLMath::convertUintToFloat(rxRawVel,    -VMAX, VMAX, 12);
+    m_currentTorqueCurrent   = GSRLMath::convertUintToFloat(rxRawTorque, -TMAX, TMAX, 12);
+
+    m_mosfetTemperature = rxMessage.data[6];
+    m_coliTemperature   = rxMessage.data[7];
+
+    return true;
+}

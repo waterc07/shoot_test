@@ -1,82 +1,82 @@
 /**
  ******************************************************************************
  * @file           : tsk_test.cpp
- * @brief          : 测试任务
- ******************************************************************************
- * @attention
- *
- * Copyright (c) 2025 GMaster
- * All rights reserved.
- *
+ * @brief          : DM2325 + 2×M3508 Openloop Test (Correct DJI merge)
  ******************************************************************************
  */
-/* Includes ------------------------------------------------------------------*/
+
 #include "dvc_motor.hpp"
-#include "dvc_remotecontrol.hpp"
-#include "drv_spi.h"
-#include "dvc_imu.hpp"
+#include "cmsis_os.h"
+#include <string.h>
 
-/* Define --------------------------------------------------------------------*/
-// PID
-SimplePID::PIDParam param = {
-    10.0f,  // Kp
-    0.0f,   // Ki
-    500.0f, // Kd
-    10.0f,  // outputLimit
-    0.0f    // intergralLimit
-};
-SimplePID myPID(SimplePID::PID_POSITION, param);
-// Motor
-MotorDM4310 motor(1, 0, 3.1415926f, 40, 15, &myPID);
-// RemoteControl
-Dr16RemoteControl dr16;
+#ifndef M_PI
+#define M_PI 3.14159265358979323846f
+#endif
 
-/* Variables -----------------------------------------------------------------*/
+/* ==================== DM2325 ====================== */
+MotorDM2325 motor2325(
+    0x01,       // ESC_ID example
+    0x00,       // feedback ID
+    M_PI,
+    50.0f,
+    5.0f,
+    NULL     // open-loop
+);
 
-/* Function prototypes -------------------------------------------------------*/
-extern "C" void dr16ITCallback(uint8_t *Buffer, uint16_t Length);
-extern "C" void can1RxCallback(can_rx_message_t *pRxMsg);
-inline void transmitMotorsControlData();
+fp32 test_torque = 0.0f;
 
-/* User code -----------------------------------------------------------------*/
+/* ==================== 两个 3508 ====================== */
 
-/**
- * @brief 测试任务
- * @param argument 任务参数
- */
+MotorM3508 motor3508_L(6, NULL, 0, 1); // 电机 ID = 1 → 使用控制帧0x200
+MotorM3508 motor3508_R(7, NULL, 0, 1); 
+
+int16_t m3508_current = 500;
+
+/* ==================== CAN 回调 ====================== */
+extern "C" void can1RxCallback(can_rx_message_t *msg);
+
+
 extern "C" void test_task(void *argument)
 {
-    CAN_Init(&hcan1, can1RxCallback);                  // 初始化CAN1
-    UART_Init(&huart3, dr16ITCallback, 36);            // 初始化DR16串口
-    TickType_t taskLastWakeTime = xTaskGetTickCount(); // 获取任务开始时间
+    CAN_Init(&hcan1, can1RxCallback);
+
+    TickType_t last = xTaskGetTickCount();
+
     while (1) {
-        motor.openloopControl(0.0f);
-        transmitMotorsControlData();
-        vTaskDelayUntil(&taskLastWakeTime, 1); // 确保任务以定周期1ms运行
+
+        /* ==== DM2325 力矩控制 ==== */
+        motor2325.openloopControl(test_torque);
+        uint32_t mb2325;
+        HAL_CAN_AddTxMessage(
+            &hcan1,
+            motor2325.getMotorControlHeader(),
+            motor2325.getMotorControlData(),
+            &mb2325);
+
+
+        /* ==== 3508 左右电机合并控制帧 ==== */
+
+        motor3508_L.openloopControl(m3508_current);
+        motor3508_R.openloopControl(-m3508_current);
+
+        auto combined3508 = motor3508_L + motor3508_R;
+
+        uint32_t mb3508;
+        HAL_CAN_AddTxMessage(
+            &hcan1,
+            combined3508.getMotorControlHeader(),
+            combined3508.getMotorControlData(),
+            &mb3508);
+
+
+        vTaskDelayUntil(&last, 1);
     }
 }
 
-/**
- * @brief DR16接收中断回调函数
- * @param Buffer 接收缓冲区
- * @param Length 接收数据长度
- */
-extern "C" void dr16ITCallback(uint8_t *Buffer, uint16_t Length)
-{
-    dr16.receiveRxDataFromISR(Buffer);
-}
 
-extern "C" void can1RxCallback(can_rx_message_t *pRxMsg)
+extern "C" void can1RxCallback(can_rx_message_t *msg)
 {
-    motor.decodeCanRxMessageFromISR(pRxMsg);
-}
-
-/**
- * @brief 发送电机控制数据
- */
-inline void transmitMotorsControlData()
-{
-    const uint8_t *data = motor.getMotorControlData();
-    uint32_t send_mail_box;
-    HAL_CAN_AddTxMessage(&hcan1, motor.getMotorControlHeader(), data, &send_mail_box);
+    motor2325.decodeCanRxMessageFromISR(msg);
+    motor3508_L.decodeCanRxMessageFromISR(msg);
+    motor3508_R.decodeCanRxMessageFromISR(msg);
 }
