@@ -17,9 +17,9 @@
 Dr16RemoteControl dr16;
 
 /* ==================== 目标速度 rad/s（你可以随时更改） ====================== */
-fp32 tar2325 = 0.0f;
-fp32 tarL    = 500.0f;
-fp32 tarR    = -500.0f;
+fp32 tar2325 = 2.0f;
+fp32 tarL    = 600.0f;
+fp32 tarR    = -600.0f;
 
 /* ==================== PID 参数 ====================== */
 
@@ -27,7 +27,7 @@ fp32 tarR    = -500.0f;
 SimplePID::PIDParam pid_2325_param = {
     .Kp = 2.0f,
     .Ki = 0.0f,
-    .Kd = 0.01f,
+    .Kd = 0.0f,
     .outputLimit = 5.0f,     // MIT 扭矩最大 5 Nm
     .intergralLimit = 1.0f
 };
@@ -35,7 +35,7 @@ SimplePID pid2325(SimplePID::PID_POSITION, pid_2325_param);
 
 /* ---- M3508 的速度 PID（输出电流） ---- */
 SimplePID::PIDParam pid_3508_param = {
-    .Kp = 80.0f,
+    .Kp = 5.0f,
     .Ki = 0.0f,
     .Kd = 0.0f,
     .outputLimit = 8000.0f,     // 最大电流
