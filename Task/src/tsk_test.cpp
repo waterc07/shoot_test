@@ -6,12 +6,15 @@
  */
 
 #include "dvc_motor.hpp"
+#include "dvc_remotecontrol.hpp"
 #include "cmsis_os.h"
 #include <string.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
 #endif
+
+Dr16RemoteControl dr16;
 
 /* ==================== 目标速度 rad/s（你可以随时更改） ====================== */
 fp32 tar2325 = 0.0f;
@@ -70,7 +73,23 @@ extern "C" void test_task(void *argument)
     TickType_t last = xTaskGetTickCount();
 
     while (1) {
-        
+
+        dr16.updateEvent();
+        auto rs = dr16.getRightSwitchStatus();
+        fp32 cmd2325, cmdL, cmdR;
+        if (rs == Dr16RemoteControl::SWITCH_DOWN) {
+            // DOWN → 停止全部电机
+            cmd2325 = 0;
+            cmdL = 0;
+            cmdR = 0;
+        }
+        else {
+            // MID / UP → 正常旋转
+            cmd2325 = tar2325;
+            cmdL    = tarL;
+            cmdR    = tarR;
+        }
+
         /* DM2325: PID 输出 torque → MIT 控制 */
         motor2325.angularVelocityClosedloopControl(tar2325);
 
