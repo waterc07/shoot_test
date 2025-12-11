@@ -14,9 +14,9 @@
 #endif
 
 /* ==================== 目标速度 rad/s（你可以随时更改） ====================== */
-fp32 tar2325 = 0.0f;
-fp32 tarL    = 500.0f;
-fp32 tarR    = -500.0f;
+fp32 tar2325 = 2.0f;
+fp32 tarL    = 600.0f;
+fp32 tarR    = -600.0f;
 
 /* ==================== PID 参数 ====================== */
 
@@ -24,23 +24,31 @@ fp32 tarR    = -500.0f;
 SimplePID::PIDParam pid_2325_param = {
     .Kp = 2.0f,
     .Ki = 0.0f,
-    .Kd = 0.01f,
+    .Kd = 0.00f,
     .outputLimit = 5.0f,     // MIT 扭矩最大 5 Nm
     .intergralLimit = 1.0f
 };
 SimplePID pid2325(SimplePID::PID_POSITION, pid_2325_param);
 
 /* ---- M3508 的速度 PID（输出电流） ---- */
-SimplePID::PIDParam pid_3508_param = {
-    .Kp = 80.0f,
+SimplePID::PIDParam pid_3508_param_L = {
+    .Kp = 5.0f,
     .Ki = 0.0f,
     .Kd = 0.0f,
     .outputLimit = 8000.0f,     // 最大电流
     .intergralLimit = 2000.0f
 };
 
-SimplePID pid3508_L(SimplePID::PID_POSITION, pid_3508_param);
-SimplePID pid3508_R(SimplePID::PID_POSITION, pid_3508_param);
+SimplePID pid3508_L(SimplePID::PID_POSITION, pid_3508_param_L);
+
+SimplePID::PIDParam pid_3508_param_R = {
+    .Kp = 40.0f,
+    .Ki = 0.0f,
+    .Kd = 0.0f,
+    .outputLimit = 8000.0f,     // 最大电流
+    .intergralLimit = 2000.0f
+};
+SimplePID pid3508_R(SimplePID::PID_POSITION, pid_3508_param_R);
 
 
 /* ==================== DM2325 ====================== */
@@ -50,7 +58,7 @@ MotorDM2325 motor2325(
     M_PI,
     50.0f,
     5.0f,
-    &pid2325      // open-loop
+    &pid2325      // 
 );
 
 /* ==================== 两个 3508 ====================== */
