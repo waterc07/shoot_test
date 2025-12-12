@@ -152,7 +152,7 @@ public:
 class MotorDM4310 : public Motor
 {
 public:
-    enum DMMotorState : uint8_t
+    enum DMMotorState
     {
         DISABLE = 0x00,
         ENABLE = 0x01,
@@ -181,43 +181,20 @@ public:
 };
 
 /**
- * @brief 达妙 DM-S2325-1EC 电机类（继承 DM4310）
- * @note 复用了 DM4310 的 MIT 模式和状态机，只覆盖差异部分
+ * @brief 达妙DM2325电机类
+ * @note 继承自MotorDM4310，协议一致，仅默认参数不同
  */
 class MotorDM2325 : public MotorDM4310
 {
 public:
-    enum DMMotorState2325 : uint8_t
-    {
-        DISABLE                  = 0x00,
-        ENABLE                   = 0x01,
-        SENSOR_READ_ERROR        = 0x05,
-        MOTOR_PARAM_READ_ERROR   = 0x06,
-        OVER_VOLTAGE             = 0x08,
-        UNDER_VOLTAGE            = 0x09,
-        OVER_CURRENT             = 0x0A,
-        MOSFET_OVER_TEMPERATURE  = 0x0B,
-        COLI_OVER_TEMPERATURE    = 0x0C,
-        COMMUNICATION_LOST       = 0x0D,
-        OVERLOAD                 = 0x0E
-    };
+    // 2325电机默认参数
+    static constexpr fp32 DM2325_DEFAULT_PMAX = 3.141593f;  // PI
+    static constexpr fp32 DM2325_DEFAULT_VMAX = 30.0f;      // rad/s
+    static constexpr fp32 DM2325_DEFAULT_TMAX = 0.9f;       // Nm
 
-public:
-    MotorDM2325(uint8_t controlID,
-                uint8_t masterID,
-                fp32 pmax,
-                fp32 vmax,
-                fp32 tmax,
-                Controller *controller);
-
-    // 1. 覆盖解析函数（状态码不同）
-    bool decodeCanRxMessage(const can_rx_message_t &rxMessage) override;
-
-    // 2. 覆盖零点设置（DM2325 无此命令）
-    void setMotorZeroPosition() {}   // 直接留空，防止误调用
+    MotorDM2325(uint8_t dmControlID, uint8_t dmMasterID, Controller *controller);
+    MotorDM2325(uint8_t dmControlID, uint8_t dmMasterID, fp32 pmax, fp32 vmax, fp32 tmax, Controller *controller);
 };
-
-
 
 /* Exported constants --------------------------------------------------------*/
 
