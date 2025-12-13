@@ -183,6 +183,7 @@ public:
 /**
  * @brief 达妙 DM-S2325-1EC 电机类（继承 DM4310）
  * @note 复用 DM4310 的 MIT 控制协议，仅默认参数不同
+ * @note 使用前先用达妙电机调试助手查看电机驱动板的PMAX、VMAX、TMAX参数，确保控制板与代码中的参数一致，否则会导致数据解包错误
  */
 class MotorDM2325 : public MotorDM4310
 {
